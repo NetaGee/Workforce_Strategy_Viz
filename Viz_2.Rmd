@@ -1,0 +1,242 @@
+---
+title: "Workforce Strategy 2"
+author: "Neta Grossfeld"
+date: "1/27/2019"
+output:
+  html_document:
+    code_folding: hide
+  pdf_document: default
+---
+
+```{r include=FALSE, echo=FALSE, warning=FALSE, message=FALSE, error=FALSE}
+library(tidyverse)
+library(dplyr)
+library(readxl)
+library(lubridate)
+library(here)
+library(ggrepel)
+library(gghighlight)
+library(scales)
+library(ggplot2)
+library(ggthemes)
+```
+
+```{r include=FALSE, echo=FALSE, warning=FALSE, message=FALSE, error=FALSE}
+here()
+cpsaat_39 <- read_excel(here("cpsaat39.xlsx"), 
+                        range = cell_rows(7:577), 
+                        col_types=c("text", rep("numeric", 6)),
+                        col_names = FALSE) %>% 
+                        rename(occupation = X__1, workers = X__2, weekly_earn = X__3)
+```
+
+```{r fig.height = 5, fig.width = 10, warning=FALSE, message=FALSE, error=FALSE}
+major_occ <- c("Management occupations", 
+               "Business and financial operations occupations",
+               "Computer and mathematical occupations",
+               "Architecture and engineering occupations",
+               "Life, physical, and social science occupations",
+               "Community and social service occupations",
+               "Legal occupations",
+               "Education, training, and library occupations",
+               "Arts, design, entertainment, sports, and media occupations",
+               "Healthcare practitioners and technical occupations",
+               "Service occupations",
+               "Sales and office occupations",
+               "Natural resources, construction, and maintenance occupations",
+               "Production, transportation, and material moving occupations")
+
+professional <- c("Management occupations", 
+               "Business and financial operations occupations",
+               "Computer and mathematical occupations",
+               "Architecture and engineering occupations",
+               "Life, physical, and social science occupations",
+               "Community and social service occupations",
+               "Legal occupations",
+               "Education, training, and library occupations",
+               "Arts, design, entertainment, sports, and media occupations",
+               "Healthcare practitioners and technical occupations")
+
+cps_occ <- cpsaat_39 %>%
+  select(1:3) %>%
+  na.omit() %>%
+  filter(occupation %in% major_occ) %>%
+  mutate(pro = ifelse(occupation == professional, 1, 0))
+
+cps_occ %>%
+  arrange(-weekly_earn) %>%
+  ggplot(aes(x = reorder(occupation, weekly_earn), y = weekly_earn, size = workers, alpha = .5, color = as.factor(pro))) + 
+  geom_point(stat = "identity") + 
+  scale_size_continuous(range = c(1,20), name = "Number of Employees\n(thousands)") + 
+  scale_color_manual(values = c("gray","gold"), 
+                       name = "Occupation",
+                       breaks = c("0", "1"),
+                       labels = c("Non-Professional", "Professional")) +
+  guides(alpha = FALSE) + 
+  expand_limits(y = c(400, 1650)) + 
+  scale_y_continuous(name = "Median Weekly Earnings", breaks = seq(400, 1600, 400), label=dollar) +
+  coord_flip() +
+  theme_few() +
+  labs(title="Professional Occupations Results In Higher Returns",
+       subtitle = "Occupations that are considered professional and are associated with higher earnings\nalso tend to require an initial investment in higher education.",
+       caption = "Source: Bureau of Labor Statistics’ Current Population Survey") + 
+  scale_x_discrete(name = "", labels = c("Service", 
+                                         "Production, Transportation, and Material Moving", 
+                                         "Sales and Office", 
+                                         "Natural Resources, Construction, and Maintenance",
+                                         "Community and Social Service", 
+                                         "Education, Training, and Library", 
+                                         "Arts, Design, Entertainment, Sports, and Media", 
+                                         "Healthcare Practitioners and Technical",
+                                         "Business and Financial Operations", 
+                                         "Life, Physical, and Social Science", 
+                                         "Management",
+                                         "Legal",
+                                         "Architecture and Engineering", 
+                                         "Computer and Mathematical"))+ 
+  theme(legend.position = "bottom")
+
+```
+
+For those individuals who aren't able to afford college or additional debt, opportunities for a high paying job or career path are immediately limited. The majority of professional occupations require higher education, typically four years of tuition for a bachelor's degree. Increased access to higher education and technical training for lower-income families can bridge the gap, in turn resulting in increased community wealth and a larger skilled labor pool. 
+
+With the increase in certified online education and bootcamp-style programs, local companies can widen the skilled labor force by investing in and providing access to education and resources. 
+
+
+```{r warning=FALSE, message=FALSE, error=FALSE, include=FALSE}
+library(rgdal)
+library(rgeos)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(dplyr)
+library(grid)
+
+us <- readOGR("us_states_hexgrid.geojson", "OGRGeoJSON")
+
+centers <- cbind.data.frame(data.frame(gCentroid(us, byid = TRUE), id = us@data$iso3166_2))
+
+us_map <- fortify(us, region = "iso3166_2")
+
+fortune <- read_csv(here("Fortune_500.csv"))
+
+map <- ggplot() +
+  geom_polygon(data = us_map, aes( x = long, y = lat, group = group), fill = "light gray", color = "white") +
+  geom_text(data = centers, aes(x = x, y = y, label = id)) +
+  theme_void()
+
+fortune_state <- fortune %>%
+  group_by(STATE) %>%
+  summarize(count = n())
+```
+
+```{r warning=FALSE, message=FALSE, error=FALSE, fig.align='center'}
+map + 
+ geom_map(data = fortune_state, map = us_map,
+                    aes(fill = count, map_id = STATE)) +
+  geom_map(data = fortune_state, map = us_map,
+                    aes(map_id = STATE),
+                    fill = "#ffffff", alpha = 0, color = "white",
+                    show.legend = FALSE) +
+  geom_text(data = centers, aes(label = id, x = x, y = y), color = "white", size = 4) +
+  scale_fill_gradient(name = "# of HQ", low = "light gray", high="gold") +
+  labs(title="38% Of Corporate Headquarters Are In Four States",
+       subtitle = "The allure of dense populations in California, Texas, New York, and Illinois\nfor Fortune 500 Companies ." ,
+       caption = "Source: Homeland Infrastructure Foundation-Level Data (HIFLD")
+```
+
+Where there's a large metropolitan area with a diverse labor force, there's a Headquarters. Companies have a better chance of filling roles on time and expanding when both a skilled and unskilled labor force is available. However, some labor markets may become too competitive when there are multiple companies looking for the same type of labor. These companies may look to move into states that have lower competition while still appearing attractive for people to move to. 
+
+
+```{r fig.height = 6, fig.width = 7, warning=FALSE, message=FALSE, error=FALSE, fig.align='center'}
+library(ggthemes)
+
+apartments <- read_csv(here("Apartment_Rent_Data.csv"))
+
+onebeds <- apartments %>%
+  filter(Bedroom_Size == "1br") %>%
+  group_by(Location) %>%
+  na.omit() %>%
+  gather(Price_2014_01:Price_2018_12, key='month', value='rent') %>%
+  separate(month, c("price", "year", "month"), "_") %>%
+  mutate(Date = make_date(year, month), rent=as.numeric(rent))
+
+onebeds_all <- ggplot(onebeds, aes(Date, rent, group=Location))
+
+onebeds_filtered <- filter(onebeds, Location %in% c("Cupertino, CA", "San Jose, CA"))
+
+onebeds_all +
+  geom_line(alpha=0.6, color="gray") +
+  geom_line(data = onebeds_filtered, color = "gold", size = 2) +
+  theme_few() +
+  labs(title="Ten Miles Could Be The Key To Saving $2,000 A Month",
+       subtitle = "The most expensive city for a one bedroom apartment is Cupertino, CA, located\nin the heart of Silicon Valley. But a 10 mile drive to San Jose, CA can almost\nhalve your rent.", 
+       x = "Monthly\nJanuary 2014 to December 2018",
+       y = "Monthly Median Rents, Dollars $", 
+       caption = "Source: Apartment List's Rentonomics") +
+  geom_label(data = filter(onebeds_filtered, year == "2018", month == "10"), aes(label = Location), vjust = "inward", hjust = "inward") +
+  scale_y_continuous(breaks=seq(0, 5000, 1000), expand = c(0, 0), limits=c(0,5000), labels=dollar)+
+  scale_x_date(labels = date_format("%Y"), breaks = "1 year", , expand = c(0, 0))
+```
+It's no surprise that housing is the largest expense for the average family. Housing is especially expensive in cities, which are attractive for businesses to set up shop in due to a large labor supply in close proximity. However, rent becomes increasingly expensive as more people continue to move into cities for jobs. In areas such as Silicon Valley, housing supply can't keep up with demand. Companies are forced to offer higher compensation to offset the increase in housing prices, and would do well to invest in affordable housing in the area or establish offices in cheaper locations to avoid increasing labor market competition in the long run. 
+
+
+```{r warning=FALSE, message=FALSE, error=FALSE, fig.align='center'}
+mean_incomes <- read_excel(here("mean_incomes.xlsx"))
+
+mean_incomes_88 <- mean_incomes %>%
+  filter(Year>1986)
+
+inequality <- ggplot(mean_incomes_88) +
+  geom_ribbon(aes(x=Year, ymin=Highest, ymax=Top_5t), color="dark gray", alpha=.1) +
+  geom_ribbon(aes(x=Year, ymin=Lowest, ymax=Highest, alpha = .9), fill = "gold") +
+  geom_line(aes(x=Year, y = Lowest), color = "dark gray") +
+  geom_line(aes(x=Year, y = Second), color = "dark gray") +
+  geom_line(aes(x=Year, y = Third), color = "dark gray") +
+  geom_line(aes(x=Year, y = Fourth), color="dark gray") +
+  theme_few() + 
+  scale_y_continuous(expand = c(0, 0), limits=c(0,450000), labels=dollar, name = "Mean Family Income") + 
+  scale_x_continuous(expand = c(0, 0), breaks=c(1987, 1997, 2007, 2017))+
+  scale_alpha_continuous(guide=FALSE) + 
+  labs(title="We Could All Benefit From A Little Redistribution",
+       subtitle = "Increased taxation of the Top 5%'s incomes is a necessary investment in social\nwelfare, specifically in the education of the current and future labor force.", 
+       caption = "Source: U.S. Census Bureau") +
+  annotate("text", x = c(2013, 2013, 2013, 2013, 2013, 2013), y = c(26500, 52000, 78000, 120000, 240000, 390000), label = c("Lowest", "Second", "Third", "Fourth", "Highest", "Top 5%") , color="black", size=3.5, fontface="bold")
+ 
+inequality
+```
+
+Almost two-fifths of the population likely struggle to pay for higher education. Income has been associated with access to higher education due to the beneficial activities, resources, and other advantages that a higher income can provide throughout a child's life. Corporations and the wealthiest Americans can and should invest in expanding quality education across the nation. Curriculum design, with input from a variety of sources including companies and higher education institutions, should properly prepare youth to, among other things, contribute to a skilled workforce.  
+
+```{r warning=FALSE, message=FALSE, error=FALSE, fig.align='center', fig.height=10, fig.width=8}
+bachelors <- read_excel(here("bachelors.xlsx"))
+
+bachelors_f <- bachelors %>%
+  filter(Total>10000)
+
+bachelors_f_id <- bachelors_f %>%
+  mutate(id = seq(1, nrow(bachelors_f)))
+
+labels=bachelors_f_id
+number_of_bar=nrow(labels)
+angle= 90 - 360 * (labels$id-0.5) /number_of_bar
+labels$hjust<-ifelse(angle < -90, 1, 0)
+labels$angle<-ifelse(angle < -90, angle+180, angle)
+
+circular <- ggplot(bachelors_f,aes(x=Field, y=Total)) +
+  geom_bar(stat="identity", fill="gold") + 
+  theme_void() + 
+  coord_polar(start=0) +
+  ylim(-100000,800000) +
+  geom_text(data=labels, aes(x=id, y=Total+5000, label=Field, hjust=hjust, size = Total),alpha=0.6, angle= labels$angle, inherit.aes = FALSE) +
+  labs(title="College Degrees Entering The Labor Market",
+       subtitle = "Are we prepared for the evolving needs of the current and future labor market?", 
+       caption = "Source: U.S. Department of Education\nNational Center for Education Statistics\nIntegrated Postsecondary Education Data System (IPEDS)")+
+  scale_size_continuous(name="Total Degrees in 2016", breaks=c(100000, 200000, 300000), labels=c("100,000", "200,000", "300,000"))
+
+ 
+#  scale_size_area(max_size = 6)
+
+circular
+```
+Companies in competitive labor markets are finding the available skilled labor supply to be smaller than they need. Requiring a bachelor's degree can limit the skilled labor supply since it excludes those who may not have been able to afford college or chose to start working after high school. Additionally, students may not realize the demand different industries have for certain fields of study before they have to declare one. Companies can do a better job of reaching out to their intended workforce years in advance through educational programs and opportunities. Additionally, companies can sponsor and encourage non-traditional learning through online degrees and bootcamps.  
