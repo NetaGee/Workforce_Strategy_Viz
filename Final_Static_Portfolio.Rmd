@@ -1,0 +1,482 @@
+---
+title: "Understanding The Labor Market"
+author: "Neta Grossfeld"
+date: ""
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    fig_width: 12
+    fig_height: 6
+    fig_asp: 0.618
+    out_width: "70%"
+    fig.align: "center"
+    theme: lumen
+  pdf_document: default
+---
+
+```{r include=FALSE, echo=FALSE, warning=FALSE, message=FALSE, error=FALSE}
+library(tidyverse)
+library(dplyr)
+library(readxl)
+library(lubridate)
+library(here)
+library(ggrepel)
+library(gghighlight)
+library(scales)
+library(ggplot2)
+library(ggthemes)
+library(extrafont)
+```
+
+```{r theme}
+theme_neta <- function(
+  base_family = "Verdana") {
+  theme_few(
+    base_family = base_family) %+replace%
+  theme(
+    panel.background = element_rect(fill = "white", colour = "white"),
+        panel.border = element_blank(),
+        panel.grid.major.y = element_line(colour = "#abaaaa", linetype = "dotted"),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+    plot.title = element_text(
+      family = "Verdana",
+      size = 16,
+      face = "bold",
+      color = "grey25",
+      hjust = 0,
+      margin = margin(b = 6)),
+    plot.subtitle = element_text(
+      size = 14,
+      color = "grey35",
+      margin = margin(b = 9),
+      hjust = 0),
+    plot.caption = element_text(
+      size = 10,
+      color = "grey35",
+      face = "italic",
+      margin = margin(t = 12),
+      hjust = 1),
+    axis.title = element_text(size = 14, face = "bold", color = "grey25"),
+    axis.text = element_text(size = 12, color = "grey35"),
+    axis.ticks = element_blank(),
+    legend.key = element_rect(fill = "white", color = NA),
+    legend.title = element_text(color = "grey25", size = 14),
+    legend.text = element_text(
+      color = "grey35",
+      size = 10),
+    legend.background = element_rect(fill="white")) 
+}
+
+```
+
+# Overview
+
+I mainly use the Bureau Labor of Statistics' Current Population Survey to disect the labor market by earnings and education, along with certain demographics such as gender and race. I then take a closer look at what a competitive labor market might look like in terms of county level data including income, poverty, and rent prices. 
+
+### An Investigation Into 2018 Median Weekly Earnings
+
+```{r include=FALSE, echo=FALSE, warning=FALSE, message=FALSE, error=FALSE}
+here()
+cpsaat_39 <- read_excel(here("cpsaat39.xlsx"), 
+                        range = cell_rows(7:577), 
+                        col_types=c("text", rep("numeric", 6)),
+                        col_names = FALSE) %>% 
+                        rename(occupation = X__1, workers = X__2, weekly_earn = X__3)
+```
+### By Occupation
+```{r, warning=FALSE, message=FALSE, error=FALSE, fig.width=14, fig.height=8}
+major_occ <- c("Management occupations", 
+               "Business and financial operations occupations",
+               "Computer and mathematical occupations",
+               "Architecture and engineering occupations",
+               "Life, physical, and social science occupations",
+               "Community and social service occupations",
+               "Legal occupations",
+               "Education, training, and library occupations",
+               "Arts, design, entertainment, sports, and media occupations",
+               "Healthcare practitioners and technical occupations",
+               "Service occupations",
+               "Sales and office occupations",
+               "Natural resources, construction, and maintenance occupations",
+               "Production, transportation, and material moving occupations")
+
+professional <- c("Management occupations", 
+               "Business and financial operations occupations",
+               "Computer and mathematical occupations",
+               "Architecture and engineering occupations",
+               "Life, physical, and social science occupations",
+               "Community and social service occupations",
+               "Legal occupations",
+               "Education, training, and library occupations",
+               "Arts, design, entertainment, sports, and media occupations",
+               "Healthcare practitioners and technical occupations")
+
+cps_occ <- cpsaat_39 %>%
+  select(1:3) %>%
+  na.omit() %>%
+  filter(occupation %in% major_occ) %>%
+  mutate(pro = ifelse(occupation == professional, 1, 0))
+
+cps_occ %>%
+  arrange(-weekly_earn) %>%
+  ggplot(aes(x = reorder(occupation, weekly_earn), y = weekly_earn, size = workers, color = as.factor(pro))) + 
+  geom_point(stat = "identity") + 
+  scale_size_continuous(range = c(5,20), 
+                        breaks = seq(-6000, 24000, 8000),
+                        name = "Number of Employees\n(thousands)") + 
+  scale_color_manual(values = c("#19a0e1","#ffc100"), 
+                       name = "Occupation",
+                       breaks = c("0", "1"),
+                       labels = c("Non-Professional", "Professional"),
+                     guide=FALSE) + 
+  expand_limits(y = c(400, 1650)) + 
+  scale_y_continuous(name = "Median Weekly Earnings", breaks = seq(400, 1600, 400), label=dollar) +
+  coord_flip() +
+  theme_neta() +
+  labs(title="Professional Occupations Result In Higher Returns",
+       subtitle = "Occupations that are considered professional and are associated with higher earnings\nalso tend to require an initial investment in higher education.",
+       caption = "Source: Bureau of Labor Statistics’ Current Population Survey") + 
+  scale_x_discrete(name = "", labels = c("Service", 
+                                         "Production, Transportation,\nand Material Moving", 
+                                         "Sales and Office", 
+                                         "Natural Resources,\nConstruction, and Maintenance",
+                                         "Community\nand Social Service", 
+                                         "Education,Training,\nand Library", 
+                                         "Arts, Design, Entertainment,\nSports, and Media", 
+                                         "Healthcare",
+                                         "Business and\nFinancial Operations", 
+                                         "Life, Physical,\nand Social Science", 
+                                         "Management",
+                                         "Legal",
+                                         "Architecture\nand Engineering", 
+                                         "Computer\nand Mathematical")) +
+  annotate("label", x=5, y=1025, label= "Professional", color = "white", fontface="bold", fill="white")+
+  annotate("text", x=5, y=1025, label= "Professional", color = "#ffc100", fontface="bold", size=5)+
+  annotate("label", x=4, y=975, label= "Non-Professional", color = "white", fontface="bold", fill="white")+
+  annotate("text", x=4, y=975, label= "Non-Professional", color = "#19a0e1", fontface="bold", size=5)+
+  theme(legend.justification=c(1,0), 
+        legend.position=c(1,0),
+        panel.grid.major.y = element_line(colour = "#abaaaa", linetype = "dotted"))
+
+```
+
+The Bureau of Labor Statistics (BLS) defines most professional occupations as requiring educational preparation. Many job descriptions for these occupations have an education requirement of at least a Bachelor's degree. In this way, higher education can serve as a key to a financially successful career path. The median weekly earnings of a professional in the computer occupation are almost triple the median weekly earnings of an individual in the service occupation. 
+
+### By Occupation and Gender
+```{r, warning=FALSE, message=FALSE, error=FALSE, fig.width=14, fig.height=8}
+cps_gender <- cpsaat_39 %>%
+  na.omit() %>%
+  filter(occupation %in% major_occ) 
+
+cps_gender %>%
+  arrange(-weekly_earn) %>%
+  ggplot(aes(x = reorder(occupation, weekly_earn), y = weekly_earn)) +
+  geom_segment(aes(x=reorder(occupation, weekly_earn), xend=occupation, y=X__5, yend=X__7), color="#747373") +
+  geom_point( aes(x=occupation, y=X__7, size=X__6), color = "#ffc100") +
+  geom_point( aes(x=occupation, y=X__5, size=X__4), color = "#8f65bb") +
+  geom_point(aes(x = occupation, y=weekly_earn), size = 2, color = "#747373") +
+  scale_y_continuous(name = "Median Weekly Earnings", breaks = seq(400, 2000, 400), label=dollar) +
+  coord_flip() + 
+  expand_limits(y = c(400, 2050)) +
+  scale_size_continuous(range = c(5,15), 
+                        breaks = seq(-5500, 21000, 6000),
+                        name = "Number of Employees\n(thousands)") + 
+  scale_x_discrete(name = "", labels = c("Service", 
+                                         "Production, Transportation,\nand Material Moving", 
+                                         "Sales and Office", 
+                                         "Natural Resources,\nConstruction, and Maintenance",
+                                         "Community\nand Social Service", 
+                                         "Education,Training,\nand Library", 
+                                         "Arts, Design, Entertainment,\nSports, and Media", 
+                                         "Healthcare",
+                                         "Business and\nFinancial Operations", 
+                                         "Life, Physical,\nand Social Science", 
+                                         "Management",
+                                         "Legal",
+                                         "Architecture\nand Engineering", 
+                                         "Computer\nand Mathematical"))+ 
+  labs(title="How Does Your Gender Play Into Your Earnings?",
+       subtitle = "The gender pay gap is present in all occupations, even in female-dominated areas.", 
+       caption = "Source: Bureau of Labor Statistics’ Current Population Survey")+
+  theme_neta() +
+  annotate("label", x=14, y=1200, label= "Female", color = "white", fontface="bold", fill="white")+
+  annotate("text", x=14, y=1200, label= "Female", color = "#ffc100", fontface="bold", size=5)+
+  annotate("label", x=14, y=1690, label= "Male", color = "white", fontface="bold", fill="white")+
+  annotate("text", x=14, y=1690, label= "Male", color = "#8f65bb", fontface="bold", size=5)+
+  theme(legend.justification=c(1,0), 
+        legend.position=c(1,0),
+        panel.grid.major.y = element_line(colour = "#abaaaa", linetype = "dotted"))
+
+```
+
+However, education and occupation alone don't determine your median weekly earnings. Your gender does, too. The gender pay gap, or the difference between the earnings of a female and male in the same occupation, exist in every major occupation type. Men are typically paid higher earnings even in female-dominated occupations such as healthcare, education, and sales and office. The biggest gender pay gap is ~`$`700 weekly in legal occupations, and the smallest gender pay gap is ~`$`120 in community and social service occupations. 
+
+### By Race
+
+```{r, warning=FALSE, message=FALSE, error=FALSE}
+cpsaat_37 <- read_excel(here("cpsaat37.xlsx"))
+
+cpsaat_37 %>%
+  ggplot(aes(x=MWE_2018, y=0,size=NW_2018, color=Race)) +
+  geom_point() +
+  scale_size_continuous(range=c(10, 20), name="Civilian Labor Force\n(thousands)")+
+  scale_color_manual(values = c("#19a0e1", "#ea68aa", "#8f65bb", "#ffc100")) +
+  expand_limits(y = c(-0.5,0.5), x=c(600, 1200)) + 
+  theme_neta() +
+  scale_x_continuous(name = "Median Weekly Earnings", breaks = seq(600, 1600, 200), label=dollar)+
+  scale_y_continuous(breaks=seq(0, 0, 0)) + 
+  theme(legend.position = "none",
+        axis.text.y=element_blank(),
+        axis.title.y=element_blank(),
+        panel.grid.major.y = element_line(colour = "#abaaaa", linetype = "dotted"))+
+  labs(title="How Does Your Race Play Into Your Earnings?",
+       subtitle = "Both Black and Latino minority groups earn significantly less.", 
+       caption = "Source: Bureau of Labor Statistics’ Current Population Survey")+
+  annotate("text", x=915, y=0.12, label= "White", color = "#ffc100", fontface="bold", size=6, family="Verdana")+
+  annotate("text", x=1095, y=0.08, label= "Asian", color = "#19a0e1", fontface="bold", size=6, family="Verdana")+
+  annotate("text", x=715, y=0.1, label= "Latino", color = "#ea68aa", fontface="bold", size=6, family="Verdana")+
+  annotate("text", x=660, y=0.1, label= "Black", color = "#8f65bb", fontface="bold", size=6, family="Verdana")
+
+
+```
+
+Your race also affects your median weekly earnings. The median weekly earnings for Asians is almost `$`500 more than the median weekly earnings for Blacks and Latinos. Whites make approximately `$`300 more than the median weekly earnings for Blacks and Latinos. This suggests there may be a disproportionate amount of Blacks and Latinos working in less professional occupations, and earning less. 
+
+# Civilian Labor Force Education Levels
+
+### Entire Civilian Labor Force
+
+```{r, warning=FALSE, message=FALSE, error=FALSE}
+
+library(waffle)
+library(extrafont)
+
+labor_force <- c(`Less Than High School` = 10278, 
+                 `High School Graduate,\n No College` = 36010, 
+                 `Some College, No Degree` = 21937,
+                 `Associate Degree` = 15649,
+                 `Bachelor's Degree Only` = 35824,
+                 `Advanced Degree` = 21393)
+
+waffle(labor_force / 1000, rows = 10, size = 1,
+       colors = c("#747373", "#ea68aa", "#8f65bb", "#19a0e1", "#ffc100", "light gray"),
+       xlab = "1 square = 1 million people") + 
+  theme_neta()+
+  theme(legend.position = "bottom",
+        axis.title = element_text(size = 14, color = "grey25", face = "bold", family = "Verdana"),
+        axis.text = element_blank(),
+        plot.title = element_text(size = 16, face = "bold", color = "grey25", family = "Verdana"),
+        plot.subtitle = element_text(size = 14, color = "grey25", family = "Verdana"),
+        plot.caption = element_text(colour = "#747373", size = 10, face="italic"))+
+  labs(title="2018 Civilian Labor Force by Education Attainment",
+       subtitle = "More than half of the civilian labor force have some sort of higher education.",
+    caption = "Source: Bureau of Labor Statistics, CPS")
+```
+
+The 2018 Civilian Labor Force is made up of the civilian (not in the Army), noninstitutional (prison, mental hospital, nursing homes) population of individuals over 25 years of age who are either employed or unemployed. More than half of this population has recieved at least an Associate Degree, and about a third have received at least a Bachelor's degree. 
+
+### By Gender and Race
+
+```{r, warning=FALSE, message=FALSE, error=FALSE}
+cpsaat_07 <- read_excel(here("cpsaat07.xlsx"))
+
+edu_race <- cpsaat_07 %>%
+  gather(2:7, key='education', value='number')
+
+
+edu_race %>%
+  mutate(characteristic = factor(characteristic, 
+                                 levels = rev(c("Men", "Women", "Asian", "White", 
+                                                "Black", "Latino")))) %>%
+  ggplot() +
+  geom_bar(aes(x=characteristic, y=number, fill=education), stat="identity", position="fill") +
+  coord_flip()+
+  scale_fill_manual(values = c("#747373", "#ea68aa", "#8f65bb", "#19a0e1", "#ffc100", "light gray"),
+                    labels = c("Advanced Degree ", "Bachelor's Degree Only", "Associate Degree", "Some College, No Degree", 
+                                 "High School Graduates, No College", "Less Than High School")) +
+  theme_neta()+
+  theme(legend.position="bottom",
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        legend.title=element_blank())+
+  guides(fill=guide_legend(reverse=TRUE))+
+  labs(title="Some Groups More Educated Than Others",
+       subtitle = "While women may be paid less than men, they're still more educated.",
+    caption = "Source: Bureau of Labor Statistics, CPS")
+
+```
+
+We can compare levels of education attainment amongst different demographics, and interpret them along with the median weekly earnings plots from above. While Blacks have a higher proportion of at least Associate Degrees than Latinos, Black median weekly earnings are just below Latino median weekly earnings. Women also tend to have a larger educated proportion than do men. In terms of the gender pay gap, it may be that women who are more qualified than men in their occupation still earn less. 
+
+# Competitive Labor Markets
+
+### By State
+
+```{r warning=FALSE, message=FALSE, error=FALSE, include=FALSE}
+library(rgdal)
+library(rgeos)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(dplyr)
+library(grid)
+
+us <- readOGR("us_states_hexgrid.geojson", "OGRGeoJSON")
+
+centers <- cbind.data.frame(data.frame(gCentroid(us, byid = TRUE), id = us@data$iso3166_2))
+
+us_map <- fortify(us, region = "iso3166_2")
+
+fortune <- read_csv(here("Fortune_500.csv"))
+
+map <- ggplot() +
+  geom_polygon(data = us_map, aes( x = long, y = lat, group = group), fill = "#747373", color = "white") +
+  geom_text(data = centers, aes(x = x, y = y, label = id)) +
+  theme_void()
+
+fortune_state <- fortune %>%
+  group_by(STATE) %>%
+  summarize(count = n())
+```
+
+```{r warning=FALSE, message=FALSE, error=FALSE}
+fortune <- read_csv(here("Fortune_500.csv"))
+
+fortune_state <- fortune %>%
+  group_by(STATE) %>%
+  summarize(count = n())
+
+#also install mapproj package
+library(geojsonio)
+library(rgeos)
+spdf <- geojson_read(here("us_states_hexgrid.geojson"), what="sp")
+
+centers <- cbind.data.frame(data.frame(gCentroid(spdf, byid=TRUE), id=spdf@data$iso3166_2))
+
+ggplot() +
+  geom_polygon(data = spdf, aes( x = long, y = lat, group = group), fill="lightgray", color="white") +
+  geom_text(data=centers, aes(x=x, y=y, label=id),color = "white", size = 6, fontface="bold") +
+  theme_void() +
+  coord_map() +
+  geom_map(data = fortune_state, map = us_map,
+                    aes(fill = cut(count, c(0, 10, 20,30, 40, 50, Inf)), map_id = STATE)) +
+  geom_map(data = fortune_state, map = us_map,
+                    aes(map_id = STATE),
+                    fill = "#747373", alpha = 0, color = "white",
+                    show.legend = FALSE) +
+  geom_text(data = centers, aes(label = id, x = x, y = y), color = "white", size = 6, fontface="bold") +
+  scale_fill_manual(values = c("#dda0dd", "#cf96dd","#c18cdc","#b283dc", "#a37adc", "#9370db"), 
+                    labels = c("1-10", "10-20", "20-30", "30-40", "40-50", "50+")) +
+  labs(title="Competitive Labor Markets in 4 Main States",
+       subtitle = "Fortune 500 Companies in the same state create competition.",
+       caption = "Source: Homeland Infrastructure Foundation-Level Data (HIFLD)",
+       fill = "# of HQ")+
+  theme(panel.background = element_rect(fill = "white", colour = "white"),
+        plot.title = element_text(size = 16, family="Verdana", face = "bold"), 
+        plot.subtitle = element_text(size = 14, family = "Verdana"),
+        plot.caption = element_text(colour = "#747373", size = 10, family = "Verdana", face="italic"),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank())
+```
+
+38% of Fortune 500 companies, almost 200, are headquartered in either California, Texas, New York, or Illinois. These states also serve as business hubs and have a large candidate pool in part due to the dense urban populations. However, the labor market becomes competitive when certain skills and knowledge are in demand but on short supply. This competition can lead to adverse affects, such as increased employee compensation, increased cost of living, and ridiculous housing costs.  We look at California in detail below. 
+
+### A Closer Look At California
+
+```{r, warning=FALSE, message=FALSE, error=FALSE}
+library(albersusa)
+
+
+cty_sf <- counties_sf("aeqd")
+
+income <- read_excel(here("est16all.xlsx"))
+
+income_cty_ca <- income %>%
+  left_join(cty_sf, by = c("county_fips", "state_fips"))
+
+p1 <- income_cty_ca %>%
+  filter(state_fips=="06") %>%
+  ggplot() +
+  geom_sf(aes(fill=as.numeric(MEDIAN.INCOME)), lwd=0.1)+
+  scale_fill_continuous(high="Gold", low="OldLace", label=dollar)+
+  theme(panel.background = element_rect(fill = "white", colour = "white"),
+        plot.title = element_text(size = 12, family="Verdana", face = "bold"), 
+        plot.subtitle = element_text(size = 10, family = "Verdana"),
+        plot.caption = element_text(colour = "#747373", size = 8, family = "Verdana", face="italic"),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank())+
+  labs(title="Median Household Income by California County",
+       subtitle = "Silicon Valley has some of the highest median\nhousehold incomes.",
+       caption = "Source: U.S. Census Bureau,\nSmall Area Income and Poverty Estimates (SAIPE) Program",
+       fill = "Median\nHousehold\nIncome")
+
+p2 <- income_cty_ca %>%
+  filter(state_fips=="06") %>%
+  ggplot() +
+  geom_sf(aes(fill=as.numeric(POV.PERCENT)), lwd=0.1)+
+  scale_fill_continuous(high="Gold", low="OldLace")+
+  theme(panel.background = element_rect(fill = "white", colour = "white"),
+        plot.title = element_text(size = 12, family="Verdana", face = "bold"), 
+        plot.subtitle = element_text(size = 10, family = "Verdana"),
+        plot.caption = element_text(colour = "#747373", size = 8, family = "Verdana", face="italic"),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank())+
+  labs(title="Poverty Percentage by California County",
+       subtitle = "Counties surrounding Silicon Valley have higher rates\nof poverty.",
+    caption = "Source: U.S. Census Bureau,\nSmall Area Income and Poverty Estimates (SAIPE) Program",
+       fill = "Percent of\nHouseholds\nIn Poverty")
+
+library(tidyverse)
+library(gridExtra)
+library(grid)
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+California, specifically Northern California, is home to Silicon Valley - a region in the southern Bay Area named after the huge number of tech companies that sprouted or settled into the area, along with the high number of computer professionals who moved here to fill the demand. The median household income in 2017 reflects the increasing compensation awared to those with jobs and housing in the area and the surrounding counties. However, the percent of households living in poverty are much higher in those surrounding counties. This suggests that well-paid computer professionals displaced minority, low-income families in the area.  
+
+### Rising Housing Costs
+
+```{r, warning=FALSE, message=FALSE, error=FALSE, fig.width=10}
+library(ggthemes)
+
+apartments <- read_csv(here("Apartment_Rent_Data.csv"))
+
+onebeds <- apartments %>%
+  filter(Bedroom_Size == "1br" & State == "CA") %>%
+  group_by(Location) %>%
+  na.omit() %>%
+  gather(Price_2014_01:Price_2018_12, key='month', value='rent') %>%
+  separate(month, c("price", "year", "month"), "_") %>%
+  mutate(Date = make_date(year, month), rent=as.numeric(rent))
+
+onebeds_all <- ggplot(onebeds, aes(Date, rent, group=Location))
+
+onebeds_filtered <- filter(onebeds, Location %in% c("Cupertino, CA", "San Jose, CA", "Palo Alto, CA", "Menlo Park, CA", 
+                                                    "Santa Clara, CA", "Mountain View, CA", "Sunnyvale, CA"))
+onebeds_sv <- filter(onebeds, Location %in% c("Cupertino, CA", "San Jose, CA"))
+
+onebeds_all +
+  geom_line(alpha=0.5, color="#747373") +
+  geom_line(data = onebeds_sv, color = "#ffc100", size = 2) +
+  theme_neta() +
+  labs(title="Ten Miles Could Be The Key To Saving $2,000 A Month",
+       subtitle = "The most expensive city for a one bedroom apartment is Cupertino, CA, located\nin the heart of Silicon Valley. But a 10 mile drive to San Jose, CA can almost\nhalve your rent.", 
+       x = "Monthly\nJanuary 2014 to December 2018",
+       y = "Monthly Median Rents", 
+       caption = "Source: Apartment List's Rentonomics") +
+  geom_label(data = filter(onebeds_sv, year == "2018", month == "10"), aes(label = Location), vjust = "inward", hjust = "inward", size=6, family="Verdana", fontface="bold") +
+  scale_y_continuous(breaks=seq(1750, 4250, 250), expand = c(0, 0), limits=c(1600,4250), labels=dollar)+
+  scale_x_date(labels = date_format("%Y"), breaks = "1 year", expand = c(0, 0))
+```
+
+Over the last 5 years, the median rent for a one bedroom has been consistently rising across cities in Santa Clara County, a part of the Silicon Valley region. With the cheapest monthly median rent prices of `$`2,000 a month in San Jose, a household would have to earn at least $72,000 to keep housing expenses to just at or below a third of total earnings. These prices have forced low-income households to find cheaper housing further away. As more people migrate to the surrounding areas, those housing prices begin to increase, as well.   
+
