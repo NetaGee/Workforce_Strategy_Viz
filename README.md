@@ -1,5 +1,21 @@
 # Workforce_Strategy_Viz
 
-Viz_1 is the first series of 3 graphs. One is a dot graph that offers an overview of the USA Labor Market in 2018, the other a hexbin map representing the states by number of Fortune 500 company headquarters, and the last a line graph showing the different median rent prices for a one bedroom apartment in U.S. cities. 
+The Final Static Portfolio submission provides an overview of the US Labor Market and relevant factors. 
 
-Viz_2 contains the first 3 graphs with updates, along with 2 additional graphs. One is a ribbon plot that details income inequality between the different fifths of the population and the top 5%. The other is a circular bar chart detailing the bachelor degree field of study by degrees confered in 2016. 
+The first plot is a dotplot that shows 2018 median weekly earnings by occupation and number of employees, as determined by the Bureau of Labor Statistics (BLS).
+
+The second plot is a dotplot that shows 2018 median weekly earnings by occupation, number of employees, and gender. This plot shows the infamous gender pay gap. 
+
+The third plot is a dotplot that shows 2018 median weekly earnings by race. 
+
+The fourth plot is a waffle chart that breaks down the civilian labor force by educational attainment. 
+
+The fifth plot is a stacked bar chart that shows the levels of educational attainment by gender and then by race. 
+
+The sixth plot is a hexbin map that represents the number of fortune 500 headquarters by state. 
+
+The seventh plot is a county map of CA that shows median household income. 
+
+The eighth plot is a county map of CA that shows percent poverty.
+
+The ninth plot is a line chart that compares median 1 bedroom rent prices in CA cities from 2014 to 2018. 
